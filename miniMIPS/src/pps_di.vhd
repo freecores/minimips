@@ -8,16 +8,16 @@
 --    This file is part of miniMIPS.                                              --
 --                                                                                --
 --    miniMIPS is free software; you can redistribute it and/or modify            --
---    it under the terms of the GNU General Public License as published by        --
---    the Free Software Foundation; either version 2 of the License, or           --
+--    it under the terms of the GNU Lesser General Public License as published by --
+--    the Free Software Foundation; either version 2.1 of the License, or         --
 --    (at your option) any later version.                                         --
 --                                                                                --
 --    miniMIPS is distributed in the hope that it will be useful,                 --
 --    but WITHOUT ANY WARRANTY; without even the implied warranty of              --
 --    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               --
---    GNU General Public License for more details.                                --
+--    GNU Lesser General Public License for more details.                         --
 --                                                                                --
---    You should have received a copy of the GNU General Public License           --
+--    You should have received a copy of the GNU Lesser General Public License    --
 --    along with miniMIPS; if not, write to the Free Software                     --
 --    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA   --
 --                                                                                --
@@ -61,9 +61,6 @@ port (
     reset : in std_logic;
     stop_all : in std_logic;            -- Unconditionnal locking of the outputs
     clear : in std_logic;               -- Clear the pipeline stage (nop in the outputs)
-
-    -- Asynchronous outputs
-    bra_detect : out std_logic;         -- Branch detection in the current instruction
 
     -- Asynchronous connexion with the register management and data bypass unit
     adr_reg1 : out adr_reg_type;        -- Address of the first register operand
@@ -278,7 +275,6 @@ begin
             -- Set asynchronous outputs
             adr_reg1 <= (others => '0');    -- First operand register
             adr_reg2 <= (others => '0');    -- Second operand register
-            bra_detect <= '0';              -- Detection of a branch in current instruction
             use1 <= '0';                    -- Effective use of operand 1
             use2 <= '0';                    -- Effective use of operand 2
 
@@ -357,7 +353,6 @@ begin
             -- Set asynchronous outputs
             adr_reg1 <= micro_code(instr).cop_org1 & rs; -- First operand register address
             adr_reg2 <= micro_code(instr).cop_org2 & rt; -- Second operand register address
-            bra_detect <= micro_code(instr).bra;         -- Branch detection in current instruction
             use1 <= not micro_code(instr).cs_imm1;       -- Effective use of operande 1
             use2 <= not micro_code(instr).cs_imm2;       -- Effective use of operande 2
         end if;

@@ -8,16 +8,16 @@
 --    This file is part of miniMIPS.                                              --
 --                                                                                --
 --    miniMIPS is free software; you can redistribute it and/or modify            --
---    it under the terms of the GNU General Public License as published by        --
---    the Free Software Foundation; either version 2 of the License, or           --
+--    it under the terms of the GNU Lesser General Public License as published by --
+--    the Free Software Foundation; either version 2.1 of the License, or         --
 --    (at your option) any later version.                                         --
 --                                                                                --
 --    miniMIPS is distributed in the hope that it will be useful,                 --
 --    but WITHOUT ANY WARRANTY; without even the implied warranty of              --
 --    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               --
---    GNU General Public License for more details.                                --
+--    GNU Lesser General Public License for more details.                         --
 --                                                                                --
---    You should have received a copy of the GNU General Public License           --
+--    You should have received a copy of the GNU Lesser General Public License    --
 --    along with miniMIPS; if not, write to the Free Software                     --
 --    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA   --
 --                                                                                --
@@ -44,7 +44,7 @@
 --           Mouton    Louis-Marie                                      --
 --           Schneider Olivier                                          --
 --                                                                      --
---                                                          june 2003   --
+--                                                          june 2004   --
 --------------------------------------------------------------------------
 
 library ieee;
@@ -74,10 +74,7 @@ architecture rtl of minimips is
 
     -- General signals
     signal stop_all : std_logic;            -- Lock the pipeline evolution
-
     signal it_mat_clk : std_logic;          -- Synchronised hardware interruption
-    signal stop_pf : std_logic;             -- Lock the pc
-    signal genop : std_logic;               -- envoi de nops
 
     -- interface PF - EI
     signal PF_pc : bus32;                   -- PC value
@@ -90,9 +87,6 @@ architecture rtl of minimips is
     signal EI_instr : bus32;                -- Read interface
     signal EI_adr : bus32;                  -- Address from the read instruction
     signal EI_it_ok : std_logic;            -- Allow hardware interruptions
-
-    -- DI output
-    signal bra_detect : std_logic;          -- Branch detection in the current instruction
 
     -- Asynchronous connexion with the bypass unit
     signal adr_reg1 : adr_reg_type;         -- Operand 1 address
@@ -170,11 +164,19 @@ architecture rtl of minimips is
     signal interrupt     : std_logic;       -- Interruption to take into account
     signal vecteur_it    : bus32;           -- Interruption vector              
 
+    -- Connexion with predict
+    signal PR_bra_cmd : std_logic;                     -- Defined a branch
+    signal PR_bra_bad : std_logic;                     -- Defined a branch to restore from a bad prediction
+    signal PR_bra_adr : std_logic_vector(31 downto 0); -- New PC
+    signal PR_clear : std_logic;                       -- Clear the three pipeline stage : EI, DI, EX
+
+    -- Clear asserted when interrupt or PR_clear are asserted
+    signal clear    : std_logic;
+    
 begin
 
-    stop_pf <= DI_bra or bra_detect or alea;
-    genop <= bra_detect or EX_bra_confirm or DI_bra;
-
+    clear <= interrupt or PR_clear;
+    
     -- Take into account the hardware interruption on rising edge
     process (clock)
     begin
@@ -189,12 +191,13 @@ begin
         stop_all => stop_all,               -- Unconditionnal locking of the pipeline stage
 
         -- entrees asynchrones
-        bra_adr => EX_adresse,              -- Branch
-        bra_cmd => EX_bra_confirm,          -- Address to load when an effective branch
+        bra_adr => PR_bra_adr,              -- Branch
+        bra_cmd => PR_bra_cmd,              -- Address to load when an effective branch
+        bra_cmd_pr => PR_bra_bad,           -- Branch which have a priority on stop_pf (bad prediction branch)
         exch_adr => vecteur_it,             -- Exception branch
         exch_cmd => interrupt,              -- Exception vector
                                             -- Lock the stage
-        stop_pf => stop_pf,                 
+        stop_pf => alea,                 
 
         -- Synchronous output to EI stage
         PF_pc => PF_pc                      -- PC value
@@ -204,12 +207,11 @@ begin
     U2_ei : pps_ei port map (
         clock => clock,
         reset => reset,
-        clear => interrupt,         -- Clear the pipeline stage                      
+        clear => clear,         -- Clear the pipeline stage                      
         stop_all => stop_all,       -- Evolution locking signal                      
                                                                               
         -- Asynchronous inputs
         stop_ei => alea,            -- Lock the EI_adr and Ei_instr registers        
-        genop => genop,             -- Send nops                                     
                                                                               
         -- interface Controler - EI
         CTE_instr => CTE_instr,     -- Instruction from the memory                   
@@ -229,10 +231,7 @@ begin
         clock => clock,
         reset => reset,
         stop_all => stop_all,               -- Unconditionnal locking of the outputs
-        clear => interrupt,                 -- Clear the pipeline stage (nop in the outputs)
-                                                                                                      
-        -- Asynchronous outputs
-        bra_detect => bra_detect,           -- Branch detection in the current instruction
+        clear => clear,                 -- Clear the pipeline stage (nop in the outputs)
                                                                                                       
         -- Asynchronous connexion with the register management and data bypass unit
         adr_reg1 => adr_reg1,               -- Address of the first register operand
@@ -272,7 +271,7 @@ begin
         clock => clock,
         reset => reset,
         stop_all => stop_all,               -- Unconditionnal locking of outputs
-        clear => interrupt,                 -- Clear the pipeline stage
+        clear => clear,                     -- Clear the pipeline stage
                                                                                                     
         -- Datas from DI stage
         DI_bra => DI_bra,                   -- Branch instruction
@@ -466,6 +465,32 @@ begin
 
         -- Pipeline progress control signal
         stop_all       => stop_all
+    );
+    
+    U10_predict : predict port map (
+        clock           => clock,
+        reset           => reset,
+    
+        -- Datas from PF pipeline stage
+        PF_pc           => PF_pc,          -- PC of the current instruction extracted
+    
+        -- Datas from DI pipeline stage
+        DI_bra          => DI_bra,         -- Branch detected
+        DI_adr          => DI_adr,         -- Address of the branch
+    
+        -- Datas from EX pipeline stage
+        EX_bra_confirm  => EX_bra_confirm, -- Confirm if the branch test is ok
+        EX_adr          => EX_adr,         -- Address of the branch
+        EX_adresse      => EX_adresse,     -- Result of the branch
+        EX_uncleared    => EX_it_ok,       -- Define if the EX stage is cleared               
+    
+        -- Outputs to PF pipeline stage
+        PR_bra_cmd      => PR_bra_cmd,     -- Defined a branch
+        PR_bra_bad      => PR_bra_bad,     -- Defined a branch to restore from a bad prediction
+        PR_bra_adr      => PR_bra_adr,     -- New PC
+    
+        -- Clear the three pipeline stage : EI, DI, EX
+        PR_clear        => PR_clear
     );
 
 end rtl;

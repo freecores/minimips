@@ -8,16 +8,16 @@
 --    This file is part of miniMIPS.                                              --
 --                                                                                --
 --    miniMIPS is free software; you can redistribute it and/or modify            --
---    it under the terms of the GNU General Public License as published by        --
---    the Free Software Foundation; either version 2 of the License, or           --
+--    it under the terms of the GNU Lesser General Public License as published by --
+--    the Free Software Foundation; either version 2.1 of the License, or         --
 --    (at your option) any later version.                                         --
 --                                                                                --
 --    miniMIPS is distributed in the hope that it will be useful,                 --
 --    but WITHOUT ANY WARRANTY; without even the implied warranty of              --
 --    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               --
---    GNU General Public License for more details.                                --
+--    GNU Lesser General Public License for more details.                         --
 --                                                                                --
---    You should have received a copy of the GNU General Public License           --
+--    You should have received a copy of the GNU Lesser General Public License    --
 --    along with miniMIPS; if not, write to the Free Software                     --
 --    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA   --
 --                                                                                --
@@ -164,6 +164,7 @@ package pack_mips is
         stop_all : in bus1;
 
 	      bra_cmd  : in bus1;
+        bra_cmd_pr  : in bus1;
         bra_adr  : in bus32;
         exch_cmd : in bus1;
         exch_adr : in bus32;
@@ -183,7 +184,6 @@ package pack_mips is
         stop_all : in bus1;
 
         stop_ei : in bus1;
-        genop : in bus1;
 
         CTE_instr : in bus32;
         ETC_adr : out bus32;
@@ -203,8 +203,6 @@ package pack_mips is
         reset : in bus1;
         stop_all : in bus1;
         clear : in bus1;
-
-        bra_detect : out bus1;
 
         adr_reg1 : out adr_reg_type;
         adr_reg2 : out adr_reg_type;
@@ -424,6 +422,33 @@ package pack_mips is
         read_adr2     : in bus5;
         read_data1    : out bus32;
         read_data2    : out bus32
+    );
+    end component;
+
+    component predict
+    generic (
+        nb_record : integer := 3
+    );
+    port (
+    
+        clock : in std_logic;
+        reset : in std_logic;
+    
+        PF_pc  : in std_logic_vector(31 downto 0);
+    
+        DI_bra : in std_logic;
+        DI_adr : in std_logic_vector(31 downto 0);
+    
+        EX_bra_confirm : in std_logic;
+        EX_adr : in std_logic_vector(31 downto 0);
+        EX_adresse : in std_logic_vector(31 downto 0);
+        EX_uncleared : in std_logic;
+    
+        PR_bra_cmd : out std_logic;
+        PR_bra_bad : out std_logic;
+        PR_bra_adr : out std_logic_vector(31 downto 0);
+    
+        PR_clear : out std_logic
     );
     end component;
 

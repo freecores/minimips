@@ -8,16 +8,16 @@
 --    This file is part of miniMIPS.                                              --
 --                                                                                --
 --    miniMIPS is free software; you can redistribute it and/or modify            --
---    it under the terms of the GNU General Public License as published by        --
---    the Free Software Foundation; either version 2 of the License, or           --
+--    it under the terms of the GNU Lesser General Public License as published by --
+--    the Free Software Foundation; either version 2.1 of the License, or         --
 --    (at your option) any later version.                                         --
 --                                                                                --
 --    miniMIPS is distributed in the hope that it will be useful,                 --
 --    but WITHOUT ANY WARRANTY; without even the implied warranty of              --
 --    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               --
---    GNU General Public License for more details.                                --
+--    GNU Lesser General Public License for more details.                         --
 --                                                                                --
---    You should have received a copy of the GNU General Public License           --
+--    You should have received a copy of the GNU Lesser General Public License    --
 --    along with miniMIPS; if not, write to the Free Software                     --
 --    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA   --
 --                                                                                --
@@ -64,7 +64,6 @@ port (
   
   -- Asynchronous inputs
   stop_ei : in std_logic;  -- Lock the EI_adr and Ei_instr registers
-  genop : in std_logic;    -- Send nops
 
   -- Bus controler interface
   CTE_instr : in bus32;    -- Instruction from the memory
@@ -98,10 +97,6 @@ begin
           -- Clear the stage
           EI_instr <= INS_NOP;
           EI_it_ok <= '0';
-        elsif genop='1' and stop_ei='0' then
-          -- Send a nop
-          EI_instr <= INS_NOP;
-          EI_it_ok <= '1';
         elsif stop_ei='0' then
           -- Normal evolution
           EI_adr <= PF_pc;

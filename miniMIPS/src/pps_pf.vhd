@@ -8,16 +8,16 @@
 --    This file is part of miniMIPS.                                              --
 --                                                                                --
 --    miniMIPS is free software; you can redistribute it and/or modify            --
---    it under the terms of the GNU General Public License as published by        --
---    the Free Software Foundation; either version 2 of the License, or           --
+--    it under the terms of the GNU Lesser General Public License as published by --
+--    the Free Software Foundation; either version 2.1 of the License, or         --
 --    (at your option) any later version.                                         --
 --                                                                                --
 --    miniMIPS is distributed in the hope that it will be useful,                 --
 --    but WITHOUT ANY WARRANTY; without even the implied warranty of              --
 --    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               --
---    GNU General Public License for more details.                                --
+--    GNU Lesser General Public License for more details.                         --
 --                                                                                --
---    You should have received a copy of the GNU General Public License           --
+--    You should have received a copy of the GNU Lesser General Public License    --
 --    along with miniMIPS; if not, write to the Free Software                     --
 --    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA   --
 --                                                                                --
@@ -63,6 +63,7 @@ port (
 
     -- Asynchronous inputs
     bra_cmd     : in bus1;   			-- Branch
+    bra_cmd_pr  : in bus1;        -- Branch which have a priority on stop_pf (bad prediction branch)
     bra_adr     : in bus32;       -- Address to load when an effective branch
     exch_cmd    : in bus1;   			-- Exception branch
     exch_adr    : in bus32;       -- Exception vector
@@ -86,13 +87,15 @@ begin
 
     -- Elaboration of an potential future pc
     suivant <= exch_adr when exch_cmd='1'   else
+               bra_adr  when bra_cmd_pr='1' else
                bra_adr  when bra_cmd='1'    else
                bus32(unsigned(pc_interne) + 4);
 
     lock <= '1' when stop_all='1' else -- Lock this stage when all the pipeline is locked
             '0' when exch_cmd='1' else -- Exception
+            '0' when bra_cmd_pr='1' else -- Bad prediction restoration
+            '1' when stop_pf='1'  else -- Wait for the data hazard
             '0' when bra_cmd='1'  else -- Branch
-            '1' when stop_pf='1'  else -- Wait for the branch hazard
             '0';                       -- Normal evolution
 
     -- Synchronous evolution of the pc
